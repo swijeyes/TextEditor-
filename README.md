@@ -132,6 +132,8 @@ TextEditor+ is distributed in the hope that it will be useful, but **without any
 
 You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+Author assumes no liability for the functioning of this program.
+
 ### Third-party components
 
 TextEditor+ is built with the [Qt framework](https://www.qt.io/), used under the [GNU LGPL v3](https://www.gnu.org/licenses/lgpl-3.0.html). Qt's source code is available from [download.qt.io](https://download.qt.io/official_releases/qt/). Packaged builds also include libraries that Qt depends on, such as ICU, HarfBuzz, FreeType, PCRE2 and libpng, each under its own open-source license. All of these licenses are compatible with the AGPLv3.
