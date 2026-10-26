@@ -22,8 +22,9 @@ TextEditor+ is fast native text editor that is an OS-native version of "Web Text
 - **Fonts:** pick any installed monospace font and zoom with A+/A− or Ctrl/Cmd + scroll wheel
 - **Faithful saving:** keeps each file's line endings (LF/CRLF) and encoding (UTF-8, or Latin-1 for files that aren't valid UTF-8). Saves are atomic, so a failed save never leaves a half-written file.
 - **Safeguards:** won't open devices or pipes, asks before opening binary files or files over 50 MB, and refuses files over 512 MB
-- Open files by dragging them onto the window or passing a path on the command line
+- Open files by dragging them onto the window or the Dock icon (macOS), with "Open With" in Finder, or by passing a path on the command line
 - Remembers window size, font, theme and word-wrap setting
+- On macOS, closing the window (⌘W) keeps the app in the Dock; click the icon or drop a file on it to bring the window back
 
 ## Keyboard shortcuts
 
@@ -31,6 +32,7 @@ TextEditor+ is fast native text editor that is an OS-native version of "Web Text
 |---|---|---|
 | New / Open / Save | ⌘N / ⌘O / ⌘S | Ctrl+N / Ctrl+O / Ctrl+S |
 | Save As | ⇧⌘S | Ctrl+Shift+S |
+| Close window | ⌘W | Ctrl+W |
 | Print | ⌘P | Ctrl+P |
 | Find / Replace | ⌘F / ⌥⌘F | Ctrl+F / Ctrl+H (Ctrl+R on KDE) |
 | Find next / previous | ⌘G / ⇧⌘G | F3 / Shift+F3 |
@@ -131,8 +133,6 @@ TextEditor+ is free software: you can redistribute it and/or modify it under the
 TextEditor+ is distributed in the hope that it will be useful, but **without any warranty**; without even the implied warranty of merchantability or fitness for a particular purpose. See the [GNU Affero General Public License](LICENSE) for more details.
 
 You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-Author assumes no liability for the functioning of this program.
 
 ### Third-party components
 
