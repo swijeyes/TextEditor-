@@ -22,6 +22,7 @@ public:
     void loadFile(const QString &path);
 
 protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
 
 private:
@@ -31,7 +32,10 @@ private:
     bool save();
     bool saveAs();
     void print();
+    void resetDocument();
     void openDroppedFile(const QString &path);
+    void openRequestedFile(const QString &path);
+    void reveal();
     bool maybeSave();
     bool saveFile(const QString &path);
     void setCurrentFile(const QString &path);

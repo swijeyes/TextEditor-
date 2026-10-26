@@ -8,10 +8,14 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("TextEditor+"));
-    QApplication::setApplicationVersion(QStringLiteral("1.0.0"));
+    QApplication::setApplicationVersion(QStringLiteral(APP_VERSION));
     QApplication::setOrganizationName(QStringLiteral("sjwrc"));
     QApplication::setOrganizationDomain(QStringLiteral("sjwrc.com"));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/icon.png")));
+#ifdef Q_OS_MACOS
+    // Closing the window leaves the app running in the Dock.
+    QApplication::setQuitOnLastWindowClosed(false);
+#endif
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("A simple code and text editor."));

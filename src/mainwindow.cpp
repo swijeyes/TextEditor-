@@ -11,6 +11,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
+#include <QFileOpenEvent>
 #include <QFileInfo>
 #include <QFontComboBox>
 #include <QFontDatabase>
@@ -28,8 +29,16 @@
 #include <QStringDecoder>
 #include <QTextBlock>
 #include <QTextDocumentFragment>
+#include <QTimer>
 #include <QToolBar>
 #include <QVBoxLayout>
+
+#ifdef Q_OS_UNIX
+#include <cerrno>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 namespace {
 
@@ -72,6 +81,33 @@ QString megabytes(qint64 bytes)
     return QString::number(double(bytes) / (1024 * 1024), 'f', 0) + QStringLiteral(" MB");
 }
 
+// Opens path for reading and returns an error message, or an empty string on
+// success. On Unix the regular-file check is made on the opened file itself,
+// so the path can't be swapped for a FIFO or device after loadFile() looked
+// at it, and O_NONBLOCK stops open() from waiting on a FIFO.
+QString openForReading(QFile &file, const QString &path)
+{
+#ifdef Q_OS_UNIX
+    const int fd = ::open(QFile::encodeName(path).constData(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+    if (fd < 0)
+        return qt_error_string(errno);
+    struct stat st;
+    if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+        ::close(fd);
+        return QCoreApplication::translate("MainWindow", "Not a regular file.");
+    }
+    // Reads from a regular file never block, so O_NONBLOCK can stay set.
+    if (!file.open(fd, QIODevice::ReadOnly, QFileDevice::AutoCloseHandle)) {
+        ::close(fd);
+        return file.errorString();
+    }
+    return {};
+#else
+    file.setFileName(path);
+    return file.open(QIODevice::ReadOnly) ? QString() : file.errorString();
+#endif
+}
+
 } // namespace
 
 MainWindow::MainWindow(QWidget *parent)
@@ -98,6 +134,20 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_editor, &CodeEditor::zoomRequested, this, &MainWindow::changeFontSize);
     connect(m_editor, &CodeEditor::fileDropped, this, &MainWindow::openDroppedFile);
 
+    // macOS sends files dropped on the Dock icon (or opened from Finder)
+    // to the application object rather than to a window.
+    qApp->installEventFilter(this);
+
+#ifdef Q_OS_MACOS
+    // The app keeps running after its window is closed, as Mac apps do.
+    // Clicking the Dock icon then brings the window back.
+    connect(qApp, &QGuiApplication::applicationStateChanged, this,
+            [this](Qt::ApplicationState state) {
+                if (state == Qt::ApplicationActive)
+                    reveal();
+            });
+#endif
+
     readSettings();
     setCurrentFile({});
     updateCursorPosition();
@@ -109,6 +159,8 @@ void MainWindow::createUi()
                             auto slot) {
         QAction *action = menu->addAction(text);
         action->setShortcut(shortcut);
+        // On macOS the menus stay usable after the window is closed.
+        connect(action, &QAction::triggered, this, &MainWindow::reveal);
         connect(action, &QAction::triggered, this, slot);
         return action;
     };
@@ -123,8 +175,16 @@ void MainWindow::createUi()
     fileMenu->addSeparator();
     addAction(fileMenu, tr("&Print…"), QKeySequence::Print, &MainWindow::print);
     fileMenu->addSeparator();
-    QAction *quitAction = addAction(fileMenu, tr("&Quit"), QKeySequence::Quit, &QWidget::close);
+    QAction *closeAction = fileMenu->addAction(tr("&Close Window"));
+    closeAction->setShortcut(QKeySequence::Close);
+    connect(closeAction, &QAction::triggered, this, &QWidget::close);
+    QAction *quitAction = fileMenu->addAction(tr("&Quit"));
+    quitAction->setShortcut(QKeySequence::Quit);
     quitAction->setMenuRole(QAction::QuitRole);
+    connect(quitAction, &QAction::triggered, this, [this] {
+        if (close())
+            QApplication::quit();
+    });
 
     // Edit
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
@@ -274,10 +334,11 @@ void MainWindow::loadFile(const QString &path)
         return;
     }
 
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
+    QFile file;
+    const QString openError = openForReading(file, path);
+    if (!openError.isEmpty()) {
         showMessage(this, QMessageBox::Warning, tr("Open File"),
-                    tr("Cannot read %1:\n%2").arg(nativePath, file.errorString()));
+                    tr("Cannot read %1:\n%2").arg(nativePath, openError));
         return;
     }
     // Bounded read, in case the file changed after the checks above.
@@ -370,8 +431,12 @@ void MainWindow::setCurrentFile(const QString &path)
 
 void MainWindow::newFile()
 {
-    if (!maybeSave())
-        return;
+    if (maybeSave())
+        resetDocument();
+}
+
+void MainWindow::resetDocument()
+{
     m_editor->clear();
     m_crlf = false;
     m_latin1 = false;
@@ -394,6 +459,29 @@ void MainWindow::openDroppedFile(const QString &path)
 {
     if (maybeSave())
         loadFile(path);
+}
+
+void MainWindow::openRequestedFile(const QString &path)
+{
+    // A file can arrive from the Dock or Finder while a dialog is open, such
+    // as Save As. Opening it then would swap the document out from under
+    // the dialog, so wait until the dialog has closed.
+    if (QApplication::activeModalWidget()) {
+        QTimer::singleShot(250, this, [this, path] { openRequestedFile(path); });
+        return;
+    }
+    reveal();
+    raise();
+    activateWindow();
+    openDroppedFile(path);
+}
+
+void MainWindow::reveal()
+{
+    if (isMinimized())
+        showNormal();
+    else if (!isVisible())
+        show();
 }
 
 bool MainWindow::save()
@@ -459,14 +547,29 @@ bool MainWindow::maybeSave()
     return answer == QMessageBox::Discard;
 }
 
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == qApp && event->type() == QEvent::FileOpen) {
+        const QString path = static_cast<QFileOpenEvent *>(event)->file();
+        if (!path.isEmpty())
+            openRequestedFile(path);
+        return true;
+    }
+    return QMainWindow::eventFilter(watched, event);
+}
+
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    if (maybeSave()) {
-        writeSettings();
-        event->accept();
-    } else {
+    if (!maybeSave()) {
         event->ignore();
+        return;
     }
+    writeSettings();
+    event->accept();
+#ifdef Q_OS_MACOS
+    // The app keeps running, so start afresh the next time the window shows.
+    resetDocument();
+#endif
 }
 
 void MainWindow::setLanguage(Language language)
