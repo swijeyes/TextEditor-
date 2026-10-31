@@ -1,0 +1,32 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/toolbar">
+        <file>find.png</file>
+        <file>find@2x.png</file>
+        <file>find@3x.png</file>
+        <file>open.png</file>
+        <file>open@2x.png</file>
+        <file>open@3x.png</file>
+        <file>save.png</file>
+        <file>save@2x.png</file>
+        <file>save@3x.png</file>
+        <file>sidebar.png</file>
+        <file>sidebar@2x.png</file>
+        <file>sidebar@3x.png</file>
+        <file>theme-moon.png</file>
+        <file>theme-moon@2x.png</file>
+        <file>theme-moon@3x.png</file>
+        <file>theme-sun.png</file>
+        <file>theme-sun@2x.png</file>
+        <file>theme-sun@3x.png</file>
+        <file>wrap.png</file>
+        <file>wrap@2x.png</file>
+        <file>wrap@3x.png</file>
+        <file>zoom-in.png</file>
+        <file>zoom-in@2x.png</file>
+        <file>zoom-in@3x.png</file>
+        <file>zoom-out.png</file>
+        <file>zoom-out@2x.png</file>
+        <file>zoom-out@3x.png</file>
+    </qresource>
+</RCC>
