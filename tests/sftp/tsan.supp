@@ -1,0 +1,15 @@
+# ThreadSanitizer suppressions for the SFTP tests:
+#   TSAN_OPTIONS=suppressions=tests/sftp/tsan.supp
+#
+# QtCore isn't built with ThreadSanitizer, so it can't see the locking Qt
+# does when it hands work between threads. Our own data crosses threads
+# through SftpWorker's std::mutex queue, which TSan does see. What's left
+# are two hand-offs entirely inside Qt:
+#  - the shared state of a QFuture, created on the UI thread and released
+#    on the worker when its QPromise finishes (reference-counted in QtCore);
+#  - the queued call that wakes the worker, created by QMetaObject::
+#    invokeMethod on the UI thread and run on the worker via the event
+#    queue (locked in QtCore).
+# Keep these entries this narrow, so real races in our code still show.
+race:QMetaTypeForType<QFutureInterface<void>>::getDtor
+race:QCallableObject<void (SftpWorker::*)()

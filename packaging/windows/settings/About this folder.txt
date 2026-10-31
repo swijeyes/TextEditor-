@@ -1,0 +1,2 @@
+TextEditor+ keeps its settings in this folder.
+Delete this folder to store settings in the Windows registry instead.
