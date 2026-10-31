@@ -1,0 +1,79 @@
+# The official Windows build from 2.0 on: Microsoft's compiler, libssh from
+# vcpkg, and a portable zip. Signing goes through SignPath, as described in
+# instructions/signpath_signing.txt (that step is left commented out until
+# the SignPath project exists).
+name: Windows build
+
+# Runs only when started by hand (Actions > Windows build > Run workflow).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.12.0'
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Install libssh with OpenSSL (vcpkg)
+        run: vcpkg install libssh[openssl]:x64-windows
+
+      - name: Set up the compiler
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALLATION_ROOT%/scripts/buildsystems/vcpkg.cmake
+        shell: cmd
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure -E integration
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - name: Make the portable folder
+        shell: pwsh
+        run: |
+          $dir = "TextEditor+-${{ github.ref_name }}-windows-x64"
+          New-Item -ItemType Directory $dir, "$dir/settings" | Out-Null
+          Copy-Item "build/TextEditor+.exe" $dir
+          windeployqt --release --no-translations --no-system-d3d-compiler "$dir/TextEditor+.exe"
+          # libssh and the OpenSSL libraries it uses.
+          $bin = "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin"
+          Copy-Item "$bin/ssh.dll", "$bin/libcrypto-*.dll", "$bin/zlib1.dll" $dir -ErrorAction SilentlyContinue
+          Copy-Item "README.txt", "LICENSE", "licenses" $dir -Recurse -ErrorAction SilentlyContinue
+          # Every DLL the program needs must be in the folder.
+          Get-ChildItem $dir -Recurse -Filter *.dll | ForEach-Object { dumpbin /dependents $_.FullName } | Out-File deps.txt
+          Compress-Archive $dir "$dir.zip"
+
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: windows-portable
+          path: TextEditor+-*-windows-x64.zip
+
+      # - name: Sign with SignPath
+      #   uses: signpath/github-action-submit-signing-request@v1
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: <organization id>
+      #     project-slug: texteditor-plus
+      #     signing-policy-slug: release-signing
+      #     github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      #     wait-for-completion: true
+      #     output-artifact-directory: signed
