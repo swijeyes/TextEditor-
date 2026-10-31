@@ -1,8 +1,14 @@
 #include "codeeditor.h"
 
+#include "spellchecker.h"
+
+#include <QContextMenuEvent>
+#include <QMenu>
 #include <QMimeData>
 #include <QPainter>
+#include <QScrollBar>
 #include <QTextBlock>
+#include <QTextLayout>
 
 namespace {
 
@@ -21,12 +27,21 @@ private:
     CodeEditor *m_editor;
 };
 
-bool hasLocalFiles(const QMimeData *source)
+// Most suggestions worth showing in the menu.
+constexpr int MaxSuggestions = 6;
+
+// Dropped files and folders, local or on a server. Other URLs (such as web
+// links) are inserted as text as before.
+QList<QUrl> openableUrls(const QMimeData *source)
 {
+    QList<QUrl> result;
     if (!source->hasUrls())
-        return false;
-    const QList<QUrl> urls = source->urls();
-    return !urls.isEmpty() && urls.first().isLocalFile();
+        return result;
+    for (const QUrl &url : source->urls()) {
+        if (url.isLocalFile() || url.scheme().compare(QLatin1String("sftp"), Qt::CaseInsensitive) == 0)
+            result << url;
+    }
+    return result;
 }
 
 } // namespace
@@ -56,6 +71,10 @@ void CodeEditor::setTheme(const Theme &theme)
     p.setColor(QPalette::Highlight, theme.selection);
     p.setColor(QPalette::HighlightedText, theme.foreground);
     setPalette(p);
+    // The scroll bars match the theme rather than the system's appearance.
+    setProperty("classicDark", theme.dark);
+    verticalScrollBar()->update();
+    horizontalScrollBar()->update();
 
     highlightCurrentLine();
 }
@@ -68,6 +87,13 @@ void CodeEditor::setEditorFont(const QFont &font)
     m_lineNumberArea->update();
 }
 
+void CodeEditor::setLineNumbersVisible(bool visible)
+{
+    m_lineNumbers = visible;
+    m_lineNumberArea->setVisible(visible);
+    updateLineNumberAreaWidth();
+}
+
 int CodeEditor::lineNumberAreaWidth() const
 {
     const int digits = qMax(3, int(QString::number(qMax(1, blockCount())).size()));
@@ -76,7 +102,7 @@ int CodeEditor::lineNumberAreaWidth() const
 
 void CodeEditor::updateLineNumberAreaWidth()
 {
-    const int width = lineNumberAreaWidth();
+    const int width = m_lineNumbers ? lineNumberAreaWidth() : 0;
     setViewportMargins(width, 0, 0, 0);
     const QRect cr = contentsRect();
     m_lineNumberArea->setGeometry(cr.left(), cr.top(), width, cr.height());
@@ -179,15 +205,80 @@ void CodeEditor::wheelEvent(QWheelEvent *event)
 
 bool CodeEditor::canInsertFromMimeData(const QMimeData *source) const
 {
-    return hasLocalFiles(source) || QPlainTextEdit::canInsertFromMimeData(source);
+    return !openableUrls(source).isEmpty() || QPlainTextEdit::canInsertFromMimeData(source);
 }
 
 void CodeEditor::insertFromMimeData(const QMimeData *source)
 {
-    // Dropping a file opens it rather than inserting its path.
-    if (hasLocalFiles(source)) {
-        emit fileDropped(source->urls().first().toLocalFile());
+    // Dropping a file opens it (and a folder shows it in the sidebar)
+    // rather than inserting its path.
+    const QList<QUrl> urls = openableUrls(source);
+    if (!urls.isEmpty()) {
+        emit urlsDropped(urls);
         return;
     }
     QPlainTextEdit::insertFromMimeData(source);
+}
+
+void CodeEditor::contextMenuEvent(QContextMenuEvent *event)
+{
+    QMenu *menu = createStandardContextMenu(event->pos());
+    addSpellingActions(menu, event->pos());
+    menu->exec(event->globalPos());
+    delete menu;
+}
+
+void CodeEditor::addSpellingActions(QMenu *menu, const QPoint &pos)
+{
+    // Only words the highlighter underlined: they are prose and misspelled.
+    const QTextCursor clicked = cursorForPosition(pos);
+    const QTextBlock block = clicked.block();
+    const int column = clicked.positionInBlock();
+    int start, end;
+    if (!SpellChecker::wordAt(block.text(), column, &start, &end))
+        return;
+    bool underlined = false;
+    for (const QTextLayout::FormatRange &range : block.layout()->formats()) {
+        if (start >= range.start && start < range.start + range.length
+            && range.format.underlineStyle() == QTextCharFormat::SpellCheckUnderline)
+            underlined = true;
+    }
+    if (!underlined)
+        return;
+
+    const QString word = block.text().mid(start, end - start);
+    QTextCursor cursor(block);
+    cursor.setPosition(block.position() + start);
+    cursor.setPosition(block.position() + end, QTextCursor::KeepAnchor);
+
+    QAction *first = menu->actions().value(0);
+    QList<QAction *> actions;
+    const QStringList suggestions = SpellChecker::instance()->suggestions(word).mid(0, MaxSuggestions);
+    for (const QString &suggestion : suggestions) {
+        auto *action = new QAction(suggestion, menu);
+        QFont font = action->font();
+        font.setBold(true);
+        action->setFont(font);
+        connect(action, &QAction::triggered, this, [this, cursor, suggestion]() mutable {
+            cursor.insertText(suggestion);
+            setTextCursor(cursor);
+        });
+        actions << action;
+    }
+    if (suggestions.isEmpty()) {
+        auto *none = new QAction(tr("No Guesses Found"), menu);
+        none->setEnabled(false);
+        actions << none;
+    }
+    auto *separator = new QAction(menu);
+    separator->setSeparator(true);
+    actions << separator;
+    auto *ignore = new QAction(tr("Ignore Spelling"), menu);
+    connect(ignore, &QAction::triggered, this, [word] { SpellChecker::instance()->ignore(word); });
+    auto *learn = new QAction(tr("Add to Dictionary"), menu);
+    connect(learn, &QAction::triggered, this, [word] { SpellChecker::instance()->learn(word); });
+    auto *separator2 = new QAction(menu);
+    separator2->setSeparator(true);
+    actions << ignore << learn << separator2;
+    menu->insertActions(first, actions);
 }

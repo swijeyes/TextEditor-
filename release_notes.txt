@@ -1,0 +1,124 @@
+# TextEditor+ 2.5.0
+
+## What's new in 2.5.0
+
+- **More syntax highlighting:** Markdown (headings, emphasis, code spans and fenced code blocks, links, lists and quotes), Python (including triple-quoted strings, f-strings and decorators), Rust (nested comments, raw strings, lifetimes, macros and attributes) and LaTeX (commands, environments, maths and comments). They're picked from the file extension (`.md`, `.py`, `.rs`, `.tex`) or from the Language menu.
+- **TeX preview.** Opening a `.tex` file shows a preview in a sidebar on the right that follows your typing, including unsaved changes. Choose how it's made at the top of the sidebar:
+  - **Quick Preview** works without TeX and updates instantly. It shows titles, sections and the table of contents, lists, tables, figures and images, footnotes, references and citations, theorems, your own `\newcommand` macros, and maths with proper symbols and numbered equations. Complicated maths and layouts are approximate.
+  - **Typeset with pdfLaTeX / XeLaTeX / LuaLaTeX / Tectonic** (whichever are installed) shows the real pages a moment after you stop typing, with the first TeX error if there is one, and **Open PDF** to open the result in your PDF viewer. The pages are drawn with Poppler's `pdftoppm` (or `pdftocairo`, or MuPDF's `mutool`). Typesetting happens in a private temporary folder with shell escape turned off; files in the document's folder (`\input`, `\includegraphics`) are still found.
+  - **Safe with documents from anyone.** Typesetting starts as soon as a file is opened, so it runs in a sandbox (macOS's `sandbox-exec`, or bubblewrap on Linux): TeX and the PDF renderer can write only to their own temporary folder and TeX's caches, and can't use the network (except Tectonic, to download packages). Shell escape is always off; runs that take too long or write too much are stopped; page images are size-limited. Tectonic and LuaLaTeX, which TeX's own file-writing limits don't cover, are only offered where there's a sandbox. The Quick Preview never runs anything, shows links' real addresses when you point at them, and opens only web and e-mail links.
+  - The preview hides for other tabs. Close it with its close button, and bring it back with **View → Show Preview** (⇧⌘P / Ctrl+Shift+P).
+- **Markdown and HTML preview.** The preview sidebar now also opens beside Markdown (`.md`) and HTML (`.html`, `.htm`, `.xhtml`) files and follows your typing. Markdown is shown formatted in the theme's colours; HTML is shown as a web page, with its `<style>` sections, linked `.css` files from the same folder, and local or `data:` images. Scripts don't run and nothing is fetched from the internet, so it's a preview of the content and styling rather than an exact browser rendering.
+- **Toolbar icons and Settings.** Every toolbar button now has its own colourful icon, with its name beside it. The new **Settings** window (**TextEditor+ → Settings…**, ⌘, on macOS; **Edit → Settings…**, Ctrl+, on Windows) lets you put the names under the icons or show icons alone, hide toolbar buttons you don't use (their commands stay in the menus), choose the Dark or Light theme, and turn line numbers and spell checking on or off. Changes apply straight away, and **Restore Defaults** puts everything back.
+- **Spell checking.** Misspelled words are underlined as you type, using your system's dictionary (macOS and Windows; not yet on Linux). It checks plain text, the text of Markdown, HTML and LaTeX files, and comments and strings in code, and skips code-like words such as `camelCase`, `snake_case`, capitals and web addresses. Right-click an underlined word for suggestions, **Ignore Spelling** or **Add to Dictionary**.
+- **Classic scroll bars.** Scroll bars have a new "Classic" look: a glossy blue capsule thumb (grey while the window is in the background) in a shaded track, with both arrow buttons together at the bottom or right-hand end. They're always shown beside the text rather than overlaid, and follow the dark and light themes.
+- **Fixed (preview safety):** an image or style sheet the preview refused (an unsupported image format, or a file other than `.css`) could still be loaded by Qt's own fallback, which reads local files and decodes `data:` images in any format. Refused resources are now never loaded.
+- **Licences included.** The download now includes TextEditor+'s licence (`LICENSE.txt`, GNU AGPL v3) and a `Licenses` folder with the licence and source details of every library bundled with the app (also inside the app, in `Contents/Resources/licenses`).
+- **Fixed:** when TextEditor+ started, the keyboard focus was in the font box in the toolbar instead of the text, so typing went into the font name. Typing now goes straight into the document.
+
+# TextEditor+ 2.0.0
+
+## What's new in 2.0.0
+
+- **Tabs.** Open as many files as you like, each in its own tab. Switch with Ctrl+Tab / Ctrl+Shift+Tab (⌃Tab on macOS), drag tabs to reorder them, and close them with ⌘W / Ctrl+W. **Close Window** is now ⇧⌘W / Ctrl+Shift+W. Your open tabs and sidebar folder come back the next time TextEditor+ starts.
+- **Folder sidebar.** **File → Open Folder…** (or drop a folder on the window or the Dock icon) shows a folder's files in a sidebar. Click a file to open it. Right-click to create, rename or delete files and folders (local deletes go to the Trash), copy a path or refresh. Hidden files are hidden unless you ask for them.
+- **Files on servers (SFTP).** **File → Connect to Server…**, **Open Remote File…** and **Open Remote Folder…** work with any SFTP server, using your SSH keys, `ssh-agent` and `~/.ssh/config`. Remote files open in tabs and remote folders in the sidebar, with the same safeguards as local files. You can save the servers you use, and **Open Recent** lists local and remote files and folders. `sftp://` addresses also work on the command line.
+- **Saving over someone else's changes.** If a file was changed by another program, or by someone else on the server, since you opened it, TextEditor+ asks before saving: replace it, reload it, or cancel.
+- **Security:**
+  - Server host keys are checked strictly. A new server's SHA-256 fingerprint is shown before you trust it, and a server whose key has changed is refused, with no "connect anyway".
+  - Only modern encryption is used: no CBC ciphers, SHA-1 MACs, SHA-1 key exchange or SHA-1 host-key signatures.
+  - Passwords and passphrases are never saved, and are removed from any address before it is shown, saved or added to Open Recent.
+  - Remote saves write a randomly named temporary file and swap it in, keeping the file's permissions. Symbolic links are never followed silently.
+  - A hostile server can't escape the folder being browsed, flood memory with huge listings or endless files, or show formatted text: everything from a server is shown as plain text.
+  - Host and user names with shell characters are refused, so they can't reach a `ProxyCommand` in `~/.ssh/config` (the issue behind OpenSSH's CVE-2023-51385).
+  - Fixed (also present in 1.1): a file ending in an incomplete UTF-8 character opened as UTF-8 with its last bytes silently dropped, and saving lost them. Such files now open as Latin-1, unchanged.
+  - Tooltips and progress messages could render a file name such as `<b>x</b>.txt` as formatted text. They now show it as typed.
+  - The full security review is in `plan/ver2-security-review.txt`.
+
+## About TextEditor+
+
+**TextEditor+** is a lightweight code and text editor for macOS, Windows and Linux, written in C++ with Qt 6.
+
+TextEditor+ is the OS-native version of [Web TextEditor](https://sjwrc.com/tools/editor/). It keeps the same look and features, and adds native file handling, tabs, folders, files on servers, printing, find/replace and more.
+
+![TextEditor+ with a folder in the sidebar and an HTML file open in the dark theme](https://raw.githubusercontent.com/swijeyes/TextEditor-/main/docs/screenshot.png)
+
+## Highlights
+
+- **Tabs, a folder sidebar, and files on SFTP servers**
+- **A live TeX preview** for LaTeX documents
+- **Syntax highlighting** for HTML (including embedded `<script>` and `<style>`), CSS, JavaScript, C, C++, Markdown, Python, Rust and LaTeX, picked automatically from the file extension
+- **Dracula (dark) and Light themes**, matching the web version
+- **Find and replace** with match case, whole word, regular expressions and `\1` back-references
+- **Printing** of the whole file or a selection, in colours suited to paper
+- **Faithful saving:** keeps each file's line endings (LF/CRLF) and encoding (UTF-8 or Latin-1). Saves are atomic, so a failed save never leaves a half-written file.
+- **Safeguards:** won't open devices or pipes, asks before opening binary files or files over 50 MB, and warns before saving over changes made by someone else
+- Remembers your window, font, theme and word-wrap setting, and starts each time with a blank document (asking to save any unsaved changes when you close)
+
+## Download
+
+| File | Platform |
+|---|---|
+| `TextEditor+-2.0.0.dmg` | macOS 27 or later, Apple Silicon (M-series) Macs |
+| `TextEditor+-2.0.0-windows-x64.zip` | Windows 10 or 11, 64-bit: portable, no installation needed |
+
+**Linux:** no prebuilt packages yet. Build from source with Qt 6.4+, CMake 3.21+ and libssh 0.11.5+; the [README](README.md#building-from-source) has the steps.
+
+## Installing on macOS
+
+1. Open `TextEditor+-2.0.0.dmg` and drag **TextEditor+** into **Applications**.
+2. This build isn't notarized by Apple yet, so the first launch is blocked. **Right-click the app → Open**, or go to **System Settings → Privacy & Security → Open Anyway**. You only need to do this once.
+
+SHA-256 of the DMG:
+`4d59a38d809806774cc78288e2cf7b2875efa4afb7e5be921e64e6d24de70609`
+
+## Running on Windows
+
+1. Extract the whole `TextEditor+-2.0.0-windows-x64` folder from the zip file, to anywhere you like (a USB stick works too).
+2. Double-click `TextEditor+.exe`. The program isn't signed yet, so if Windows SmartScreen says "Windows protected your PC", click **More info → Run anyway**.
+
+Settings are kept in the `settings` folder next to the program, not in the registry: the window and editor settings, open tabs and folder, Open Recent and saved servers. Passwords are never stored there. To remove TextEditor+, delete the folder.
+
+### Files on a server (SFTP) on Windows
+
+- TextEditor+ uses the same files as the OpenSSH client built into Windows, in `C:\Users\<you>\.ssh`: your key files (`id_ed25519`, `id_ecdsa`, `id_rsa`, or those named in `.ssh\config`), `.ssh\config` and `.ssh\known_hosts`.
+- The Windows `ssh-agent` service isn't used. Keep your key files in the `.ssh` folder; you're asked for a key's passphrase when it's needed. Password logins work too.
+- Running from a USB stick carries no secrets: the `settings` folder never holds passwords, and your `.ssh` folder stays on the computer.
+
+SHA-256 of the zip:
+`383adfd5ed4570ddc17111cc9a5090e897c3fb299d62fd8dce2ffcbed53ac03f`
+
+## Keyboard shortcuts
+
+| Action | macOS | Windows / Linux |
+|---|---|---|
+| New tab / Open / Save | ⌘N / ⌘O / ⌘S | Ctrl+N / Ctrl+O / Ctrl+S |
+| Open folder / Connect to server | ⇧⌘O / ⌘K | Ctrl+Shift+O / Ctrl+K |
+| Close tab / Close window | ⌘W / ⇧⌘W | Ctrl+W / Ctrl+Shift+W |
+| Next / previous tab | ⌃Tab / ⌃⇧Tab | Ctrl+Tab / Ctrl+Shift+Tab |
+| Show sidebar | ⌘\ | Ctrl+\ |
+| Find / Replace | ⌘F / ⌥⌘F | Ctrl+F / Ctrl+H |
+
+The [README](README.md#keyboard-shortcuts) and the user manual (`TextEditor+ User Manual.pdf`, also included in the Windows download) have the full list.
+
+## Bundled libraries
+
+| Library | Version | Licence |
+|---|---|---|
+| Qt | 6.12.0 | GNU LGPL v3 |
+| libssh | 0.12.2 | GNU LGPL 2.1 |
+| OpenSSL (libcrypto, libssl) | 4.0.3 (macOS build) | Apache 2.0 |
+
+The Windows build bundles the same Qt, libssh 0.12.2 and OpenSSL 4.0.3 (libcrypto only), plus the llvm-mingw 20260602 runtime (libc++, libunwind, winpthreads). Their licences are in the `licenses` folder of the Windows download and in `Contents/Resources/licenses` of the macOS app.
+
+## Known limitations
+
+- The Windows `ssh-agent` service isn't used (see above).
+- Neither download is signed by a recognised publisher yet: macOS asks you to confirm the first launch, and Windows SmartScreen may warn.
+- If the connection drops in the middle of saving to a server, a hidden temporary file (`.name.tetmp-…`) may be left next to the file. The original is untouched; the temporary file is safe to delete.
+
+## License
+
+TextEditor+ is free software, released under the **GNU Affero General Public License v3.0 or later**. It's built with the [Qt framework](https://www.qt.io/), used under the GNU LGPL v3, and uses libssh (GNU LGPL 2.1) and OpenSSL (Apache 2.0) for SFTP.
+
+Bug reports and pull requests are welcome.

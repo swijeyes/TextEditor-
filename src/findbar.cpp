@@ -90,6 +90,12 @@ void FindBar::showFind(bool focusReplace)
     target->selectAll();
 }
 
+void FindBar::setEditor(QPlainTextEdit *editor)
+{
+    m_editor = editor;
+    setStatus({});
+}
+
 bool FindBar::findNext()
 {
     if (m_findEdit->text().isEmpty()) {

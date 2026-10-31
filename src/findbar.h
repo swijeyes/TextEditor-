@@ -18,6 +18,8 @@ public:
     explicit FindBar(QPlainTextEdit *editor, QWidget *parent = nullptr);
 
     void showFind(bool focusReplace);
+    // Points the bar at another editor, such as the one in a newly selected tab.
+    void setEditor(QPlainTextEdit *editor);
 
 public slots:
     bool findNext();

@@ -3,8 +3,10 @@
 #include <QColor>
 #include <QString>
 
-// Editor colour schemes. These mirror the CodeMirror "dracula" and "eclipse"
-// themes used by the web version of the editor.
+// Editor colour schemes, matching the web version of the editor: the dark
+// theme is Dracula's palette (draculatheme.com, MIT licence), and the Light
+// theme's colours are based on the "eclipse" theme for CodeMirror (MIT
+// licence).
 struct Theme
 {
     bool dark;
@@ -36,7 +38,7 @@ struct Theme
                 c("#6272a4"), c("#ff79c6"), c("#ff79c6"), c("#50fa7b")};
     }
 
-    static Theme eclipse()
+    static Theme light()
     {
         return {false,
                 c("#ffffff"), c("#000000"), c("#d7d4f0"), c("#e8f2ff"),
