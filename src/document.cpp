@@ -1,6 +1,8 @@
 #include "document.h"
 
 #include "codeeditor.h"
+#include "csvdata.h"
+#include "gridview.h"
 #include "location.h"
 #include "textcodec.h"
 
@@ -42,6 +44,31 @@ bool Document::isRemote() const
     return Location::isRemote(m_location);
 }
 
+bool Document::isTabular() const
+{
+    return !isUntitled() && CsvData::isTabularFileName(Location::fileName(m_location));
+}
+
+void Document::setGridVisible(bool on)
+{
+    if (on) {
+        if (!m_grid) {
+            m_grid = new GridView(this);
+            m_stack->addWidget(m_grid);
+        }
+        m_grid->setSource(m_editor->toPlainText(), Location::fileName(m_location));
+        m_stack->setCurrentWidget(m_grid);
+        setFocusProxy(m_grid);
+        m_grid->setFocus();
+    } else {
+        m_stack->setCurrentWidget(m_editor);
+        setFocusProxy(m_editor);
+        m_editor->setFocus();
+    }
+    m_gridVisible = on;
+    emit gridVisibilityChanged();
+}
+
 QString Document::displayName() const
 {
     return isUntitled() ? tr("Untitled") : Location::fileName(m_location);
@@ -79,6 +106,10 @@ void Document::setUnloaded(const QUrl &location)
     m_savedVersion = {};
     m_resolvedPath.clear();
     m_fileSystem.reset();
+    if (m_gridVisible) {
+        m_gridVisible = false;
+        emit gridVisibilityChanged();
+    }
     m_placeholderLabel->setText(tr("%1\n\nThis file is on %2. It opens when you connect.")
                                     .arg(Location::displayString(location),
                                          ServerAddress::fromUrl(location).displayName()));
@@ -98,6 +129,10 @@ void Document::setContent(const QUrl &location, const DecodedText &decoded,
     m_loaded = true;
     m_stack->setCurrentWidget(m_editor);
     setFocusProxy(m_editor);
+    if (m_gridVisible) {
+        m_gridVisible = false;
+        emit gridVisibilityChanged();
+    }
 
     m_editor->clear();
     m_highlighter->setLanguage(Highlighter::languageForFile(Location::fileName(location)));

@@ -1,3 +1,14 @@
+# TextEditor+ 3.0.0
+
+## What's new in 3.0.0
+
+- **Grid view for CSV and TSV files.** Open a `.csv`, `.tsv` or `.tab` file and press the new **Grid** button in the toolbar (or **View → Show as Grid**, ⇧⌘G / Ctrl+Shift+G) to switch the text area for a spreadsheet-style grid. Press it again to go back to the text. The grid is read-only with respect to the file: you can edit cells and write formulas, but nothing is written back — the text on disk is left exactly as it was.
+  - **Separator and header.** The field separator (comma, tab or semicolon) is detected from the file and can be changed; quoted fields, embedded commas and line breaks follow the usual CSV rules. Tick **First row is header** to use the first row as the column titles.
+  - **Sorting and filtering.** Click a column header to sort (numeric columns sort by value). The **Filter** bar filters rows by a column and a condition — contains, starts with, =, ≠, >, ≥, <, ≤ — and several column filters combine with AND.
+  - **Search.** The **Search** box steps through matching cells (‹ / › or Enter), and respects the current filters; ⌘F / Ctrl+F jumps to it.
+  - **Formulas.** Type a value, or a formula beginning with `=`, into a cell or the formula bar. Formulas use A1-style references (`A1`, ranges `A1:B10`, whole columns `A:A`, rows `2:5`) and evaluate live, including formulas that build on other formulas (self-references are caught as `#CIRC!`). The library covers arithmetic and the `%`, `^` and `&` operators, statistics (`SUM`, `AVERAGE`, `MEDIAN`, `STDEV`, `VAR`, `PERCENTILE`, `QUARTILE`, `CORREL`, `SLOPE`, `RANK`, `LARGE`, …), finance (`PMT`, `FV`, `PV`, `NPER`, `RATE`, `NPV`, `IRR`, `IPMT`, `PPMT`, `SLN`, `DDB`), logic (`IF`, `IFERROR`, `AND`, `OR`, `NOT`) and text (`CONCAT`, `LEN`, `LEFT`, `RIGHT`, `MID`, `UPPER`, `LOWER`, `TRIM`, `SUBSTITUTE`). The grid keeps a couple of spare rows and columns for scratch calculations and grows as you fill them.
+  - The grid follows the Dark/Light theme and the editor font, and the status bar shows the selected cell and its result.
+
 # TextEditor+ 2.5.0
 
 ## What's new in 2.5.0

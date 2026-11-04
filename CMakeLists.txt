@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(TextEditor VERSION 2.5.0 LANGUAGES CXX)
+project(TextEditor VERSION 3.0.0 LANGUAGES CXX)
 
 option(TEXTEDITOR_SFTP "SFTP support (needs libssh)" ON)
 option(TEXTEDITOR_TESTS "Build the unit tests" ON)
@@ -91,7 +91,9 @@ endfunction()
 # Everything that doesn't need widgets: shared by the app, the tests and
 # the fuzzers.
 add_library(texteditor_core STATIC
+    src/csvdata.cpp src/csvdata.h
     src/filesystem.h
+    src/formula.cpp src/formula.h
     src/latexhtml.cpp src/latexhtml.h
     src/localfilesystem.cpp src/localfilesystem.h
     src/location.cpp src/location.h
@@ -122,6 +124,7 @@ add_library(texteditor_ui STATIC
     src/document.cpp src/document.h
     src/findbar.cpp src/findbar.h
     src/foldersidebar.cpp src/foldersidebar.h
+    src/gridview.cpp src/gridview.h
     src/highlighter.cpp src/highlighter.h
     src/mainwindow.cpp src/mainwindow.h
     src/messagebox.cpp src/messagebox.h

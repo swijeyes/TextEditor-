@@ -54,6 +54,16 @@ private:
     // closed), and hides it for other tabs.
     void updatePreview();
 
+    // The grid (spreadsheet) view for CSV/TSV tabs.
+    void toggleGrid(bool on);
+    // Enables the toolbar toggle for tabular tabs and reflects whether the
+    // current tab is showing its grid.
+    void updateGridState();
+    // Applies the current theme and font to a tab's grid, if it has one.
+    void applyGridSettings(Document *document);
+    // (Re)connects a tab's grid status to the status bar, without doubling up.
+    void connectGridStatus(Document *document);
+
     // Tabs
     Document *currentDocument() const;
     Document *documentAt(int index) const;
@@ -127,6 +137,7 @@ private:
     FolderSidebar *m_sidebar = nullptr;
     Preview *m_preview = nullptr;
     QAction *m_previewAction = nullptr;
+    QAction *m_gridAction = nullptr;
     bool m_previewWanted = true;
     std::shared_ptr<LocalFileSystem> m_localFs;
 #ifdef TEXTEDITOR_HAVE_SFTP

@@ -4,6 +4,7 @@
 #include "codeeditor.h"
 #include "document.h"
 #include "foldersidebar.h"
+#include "gridview.h"
 #include "location.h"
 #include "mainwindow.h"
 #include "messagebox.h"
@@ -425,6 +426,48 @@ private slots:
         QCOMPARE(preview->kind(), Preview::Kind::Markdown);
     }
 
+    // The grid toggle is enabled only for CSV/TSV tabs, shows the grid in
+    // place of the editor, and never changes the file on disk.
+    void gridToggleForCsv()
+    {
+        QAction *gridAction = nullptr;
+        for (QAction *action : m_window->findChildren<QAction *>())
+            if (action->text() == QLatin1String("Show as &Grid"))
+                gridAction = action;
+        QVERIFY(gridAction);
+        QVERIFY(!gridAction->isEnabled()); // the untitled start tab is not tabular
+
+        const QString csv = path(QStringLiteral("data.csv"));
+        const QString txt = path(QStringLiteral("plain.txt"));
+        const QByteArray original = "qty,price\n2,3.5\n4,1.25\n";
+        writeFile(csv, original);
+        writeFile(txt, "hello\n");
+
+        QVERIFY(m_window->openLocation(QUrl::fromLocalFile(csv)));
+        Document *doc = document(m_tabs->currentIndex());
+        QVERIFY(doc->isTabular());
+        QVERIFY(gridAction->isEnabled());
+        QVERIFY(!doc->gridVisible());
+        QVERIFY(!doc->gridView());
+
+        gridAction->trigger();
+        QVERIFY(doc->gridVisible());
+        QVERIFY(doc->gridView());
+        QVERIFY(doc->gridView()->isVisible());
+        QVERIFY(!doc->editor()->isVisible());
+
+        // Toggling off returns to the editor; the file is untouched throughout.
+        gridAction->trigger();
+        QVERIFY(!doc->gridVisible());
+        QVERIFY(doc->editor()->isVisible());
+        QCOMPARE(readFile(csv), original);
+
+        // A plain-text tab cannot show the grid.
+        QVERIFY(m_window->openLocation(QUrl::fromLocalFile(txt)));
+        QVERIFY(!gridAction->isEnabled());
+        QVERIFY(!document(m_tabs->currentIndex())->gridVisible());
+    }
+
     // Every toolbar button has an icon and a label beside it, in the
     // Settings defaults: dark theme, line numbers and spell checking on.
     void toolbarDefaults()
@@ -432,7 +475,8 @@ private slots:
         auto *toolBar = m_window->findChild<QToolBar *>(QStringLiteral("mainToolBar"));
         QVERIFY(toolBar);
         QCOMPARE(toolBar->toolButtonStyle(), Qt::ToolButtonTextBesideIcon);
-        QCOMPARE(toolBarLabels(), (QStringList{"Sidebar", "Open", "Save", "Wrap", "Theme", "A+", "A−", "Find"}));
+        QCOMPARE(toolBarLabels(),
+                 (QStringList{"Sidebar", "Open", "Save", "Wrap", "Theme", "Grid", "A+", "A−", "Find"}));
         for (QAction *action : toolBar->actions()) {
             if (!action->isSeparator() && !qobject_cast<QWidgetAction *>(action))
                 QVERIFY2(!action->icon().isNull(), qPrintable(action->iconText()));
@@ -460,7 +504,8 @@ private slots:
             // Applied while the dialog is still open.
             auto *toolBar = m_window->findChild<QToolBar *>(QStringLiteral("mainToolBar"));
             QCOMPARE(toolBar->toolButtonStyle(), Qt::ToolButtonIconOnly);
-            QCOMPARE(toolBarLabels(), (QStringList{"Sidebar", "Open", "Wrap", "Theme", "A+", "A−"}));
+            QCOMPARE(toolBarLabels(),
+                     (QStringList{"Sidebar", "Open", "Wrap", "Theme", "Grid", "A+", "A−"}));
             QVERIFY(!document(0)->editor()->lineNumbersVisible());
             QVERIFY(!document(0)->highlighter()->spellCheck());
             QCOMPARE(document(0)->editor()->palette().color(QPalette::Base), Theme::light().background);
@@ -483,7 +528,8 @@ private slots:
         m_tabs = m_window->findChild<QTabWidget *>();
         auto *toolBar = m_window->findChild<QToolBar *>(QStringLiteral("mainToolBar"));
         QCOMPARE(toolBar->toolButtonStyle(), Qt::ToolButtonIconOnly);
-        QCOMPARE(toolBarLabels(), (QStringList{"Sidebar", "Open", "Wrap", "Theme", "A+", "A−"}));
+        QCOMPARE(toolBarLabels(),
+                 (QStringList{"Sidebar", "Open", "Wrap", "Theme", "Grid", "A+", "A−"}));
         QVERIFY(!document(0)->editor()->lineNumbersVisible());
         QVERIFY(!document(0)->highlighter()->spellCheck());
         QCOMPARE(document(0)->editor()->palette().color(QPalette::Base), Theme::light().background);
@@ -499,7 +545,7 @@ private slots:
             dialog->reject();
         });
         triggerAction(QStringLiteral("Se&ttings…"));
-        QCOMPARE(toolBarLabels().size(), 8);
+        QCOMPARE(toolBarLabels().size(), 9);
         QVERIFY(document(0)->editor()->lineNumbersVisible());
         QVERIFY(document(0)->highlighter()->spellCheck());
         QCOMPARE(document(0)->editor()->palette().color(QPalette::Base), Theme::dracula().background);

@@ -4,16 +4,19 @@
 QT += widgets printsupport concurrent
 CONFIG += c++17
 TARGET = "TextEditor+"
-VERSION = 2.5.0
+VERSION = 3.0.0
 DEFINES += APP_VERSION=\\\"$$VERSION\\\"
 INCLUDEPATH += src
 
 SOURCES += \
     src/classicstyle.cpp \
     src/codeeditor.cpp \
+    src/csvdata.cpp \
     src/document.cpp \
     src/findbar.cpp \
     src/foldersidebar.cpp \
+    src/formula.cpp \
+    src/gridview.cpp \
     src/highlighter.cpp \
     src/latexhtml.cpp \
     src/localfilesystem.cpp \
@@ -32,10 +35,13 @@ SOURCES += \
 HEADERS += \
     src/classicstyle.h \
     src/codeeditor.h \
+    src/csvdata.h \
     src/document.h \
     src/filesystem.h \
     src/findbar.h \
     src/foldersidebar.h \
+    src/formula.h \
+    src/gridview.h \
     src/highlighter.h \
     src/latexhtml.h \
     src/localfilesystem.h \

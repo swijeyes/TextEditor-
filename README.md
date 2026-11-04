@@ -18,6 +18,7 @@ TextEditor+ is fast native text editor that is an OS-native version of "Web Text
 - **Files on servers (SFTP):** open, edit and save files on any SFTP server, using your SSH keys, `ssh-agent` and `~/.ssh/config`. Server keys are checked strictly, saves are atomic and keep permissions, and changes made by others are detected before you overwrite them. Passwords are never stored.
 - **Syntax highlighting** for HTML (including embedded `<script>` and `<style>`), CSS, JavaScript, C, C++, Markdown, Python, Rust and LaTeX, picked automatically from the file extension
 - **Live preview:** a sidebar beside LaTeX, Markdown and HTML files that follows your typing. Markdown is shown formatted and HTML as a web page (no scripts, nothing fetched from the internet); LaTeX either instantly (Quick Preview, no TeX needed) or as real typeset pages from pdfLaTeX, XeLaTeX, LuaLaTeX or Tectonic
+- **Grid view for CSV/TSV (new in 3.0):** open a `.csv`, `.tsv` or `.tab` file and press the **Grid** button (or ⇧⌘G / Ctrl+Shift+G) to switch the text area to a spreadsheet-style grid with sorting, per-column **filtering**, **search** and a live **formula** engine — arithmetic, statistical (`SUM`, `AVERAGE`, `MEDIAN`, `STDEV`, `PERCENTILE`, `CORREL`, …), financial (`PMT`, `FV`, `PV`, `NPV`, `IRR`, `RATE`, …), logical and text functions with A1-style references. Everything is in-session: the grid never changes the file on disk.
 - **Classic scroll bars:** a glossy blue thumb in a shaded track, with both arrow buttons together at the end
 - **Two themes:** Dark (Dracula's colours) and Light
 - **Toolbar icons and Settings:** colourful icons with labels beside or under them, or icons alone; hide the buttons you don't use, pick the theme, and turn line numbers and spell checking on or off (⌘, / Ctrl+,)
@@ -33,6 +34,44 @@ TextEditor+ is fast native text editor that is an OS-native version of "Web Text
 - Remembers window size, font, theme, word-wrap setting, Settings, open tabs and the sidebar folder
 - On macOS, closing the window (⇧⌘W) keeps the app running; click its icon or drop a file on it to bring the window back
 
+## The grid view (CSV and TSV)
+
+Open a `.csv`, `.tsv` or `.tab` file and the **Grid** toolbar button lights up.
+Press it (or ⇧⌘G / Ctrl+Shift+G) to swap the text area for a spreadsheet-style
+grid; press it again to go back to the text. The grid is an **analysis layer**:
+you can type into cells and write formulas, but none of it is written back to
+the file — the text on disk is left exactly as it was.
+
+- **Separator and header:** the separator (comma, tab or semicolon) is guessed
+  from the file, and you can override it. Tick **First row is header** to use
+  the first row as the column titles.
+- **Sorting:** click a column header. Numeric columns sort by value.
+- **Filtering:** the **Filter** button opens a bar where you pick a column, a
+  condition (contains, starts with, =, ≠, >, ≥, <, ≤) and a value. Filters on
+  several columns combine with AND; **Clear all** removes them.
+- **Search:** type in the **Search** box to step through matching cells with
+  ‹ / › (or Enter); ⌘F / Ctrl+F jumps to the box. Search respects the filters.
+- **Formulas:** select a cell and type a value, or a formula beginning with `=`,
+  in the formula bar (or straight into the cell). Formulas use A1-style
+  references — `A1`, a range `A1:B10`, a whole column `A:A` or row `2:5` — and
+  update live. The selected cell's address is shown on the left, and the status
+  bar shows its result. There are always a couple of spare rows and columns for
+  scratch calculations, and the grid grows as you fill them.
+
+Supported functions:
+
+| Group | Functions |
+|---|---|
+| Maths | `ABS` `SIGN` `SQRT` `EXP` `LN` `LOG` `LOG10` `INT` `TRUNC` `ROUND` `ROUNDUP` `ROUNDDOWN` `CEILING` `FLOOR` `MOD` `POWER` `PI` `SIN` `COS` `TAN` `SUMPRODUCT` `SUMSQ` |
+| Statistical | `SUM` `AVERAGE` `MIN` `MAX` `MEDIAN` `MODE` `COUNT` `COUNTA` `PRODUCT` `STDEV` `STDEVP` `VAR` `VARP` `PERCENTILE` `QUARTILE` `LARGE` `SMALL` `RANK` `CORREL` `COVAR` `SLOPE` `INTERCEPT` `RSQ` `GEOMEAN` `HARMEAN` `AVEDEV` `DEVSQ` |
+| Financial | `PMT` `FV` `PV` `NPER` `RATE` `NPV` `IRR` `IPMT` `PPMT` `SLN` `DDB` |
+| Logical | `IF` `IFERROR` `AND` `OR` `NOT` `TRUE` `FALSE` |
+| Text | `CONCAT` `CONCATENATE` `LEN` `LEFT` `RIGHT` `MID` `UPPER` `LOWER` `TRIM` `SUBSTITUTE` |
+
+Operators: `+ - * / ^` (exponent), `%` (percent), `&` (join text) and the
+comparisons `= <> < > <= >=`. Errors appear as `#DIV/0!`, `#VALUE!`, `#NAME?`,
+`#NUM!` and `#CIRC!` (a formula that refers back to itself).
+
 ## Keyboard shortcuts
 
 | Action | macOS | Windows / Linux |
@@ -45,6 +84,7 @@ TextEditor+ is fast native text editor that is an OS-native version of "Web Text
 | Next / previous tab | ⌃Tab / ⌃⇧Tab | Ctrl+Tab / Ctrl+Shift+Tab |
 | Show sidebar | ⌘\ | Ctrl+\ |
 | Show preview | ⇧⌘P | Ctrl+Shift+P |
+| Show as grid (CSV/TSV) | ⇧⌘G | Ctrl+Shift+G |
 | Print | ⌘P | Ctrl+P |
 | Find / Replace | ⌘F / ⌥⌘F | Ctrl+F / Ctrl+H (Ctrl+R on KDE) |
 | Find next / previous | ⌘G / ⇧⌘G | F3 / Shift+F3 |
@@ -100,7 +140,7 @@ qmake finds libssh with pkg-config; add `CONFIG+=no_sftp` to build without it.
 cmake --build build && ctest --test-dir build
 ```
 
-- **Unit tests** (Qt Test, in `tests/`): text encoding and line endings, `sftp://` addresses and password stripping, folder-listing name checks, the local file system (size limits, devices and FIFOs, atomic saves, conflicts), and the main window run off-screen (tabs, saving, prompts, blank start, keyboard focus at startup, the TeX preview), the Markdown/Python/Rust/LaTeX highlighters, and the LaTeX-to-HTML converter (including hostile input).
+- **Unit tests** (Qt Test, in `tests/`): text encoding and line endings, `sftp://` addresses and password stripping, folder-listing name checks, the local file system (size limits, devices and FIFOs, atomic saves, conflicts), and the main window run off-screen (tabs, saving, prompts, blank start, keyboard focus at startup, the TeX preview, the CSV/TSV grid toggle), the Markdown/Python/Rust/LaTeX highlighters, the LaTeX-to-HTML converter (including hostile input), the CSV/TSV parser and delimiter detection (`csvdata`), and the formula engine (`formula`: parsing, references, and the maths/statistical/financial/logical/text functions, checked against known values).
 - **SFTP integration tests** (`sftp_integration`, macOS and Linux): `tests/sftp/run-integration-tests.sh` starts a throwaway OpenSSH `sshd` as the current user, servers that offer only outdated algorithms, and a deliberately hostile server (`tests/sftp/hostile_server.py`, which needs Python with `paramiko`; set `-DTEXTEDITOR_TEST_PYTHON=/path/to/python`). It covers key, passphrase, password and keyboard-interactive logins, unknown and changed host keys, saving with permissions kept, conflicts, dropped connections, symbolic links, huge and hostile listings, files that never end, slow replies, cancelling and timeouts.
 - **Sanitizers:** configure with `-DTEXTEDITOR_SANITIZE="address;undefined"` or `-DTEXTEDITOR_SANITIZE=thread` (for ThreadSanitizer, set `TSAN_OPTIONS=suppressions=tests/sftp/tsan.supp`; the file explains the two Qt-internal entries).
 - **TeX sandbox test** (`texcompiler`, runs when a TeX engine is installed): typesets a document, then checks that a hostile one can't run commands or write outside its folder with each engine found.
@@ -160,6 +200,9 @@ SFTP needs no extra entitlements: the hardened runtime doesn't restrict outgoing
 | `src/settingsdialog.*` | The Settings dialog: toolbar buttons and their style, theme, line numbers, spell checking |
 | `src/spellchecker*` | Spell checking with the system's checker (`_mac.mm`: NSSpellChecker; `_win.cpp`: Windows Spell Checking API; `_none.cpp`: elsewhere) |
 | `src/preview.*` | The live preview sidebar: Markdown, HTML and LaTeX (Quick and Typeset modes) |
+| `src/gridview.*` | The CSV/TSV spreadsheet grid: the table model, per-column filter proxy, search and formula bar |
+| `src/csvdata.*` | Delimiter detection and RFC 4180 CSV/TSV parsing (pure, shared with the tests) |
+| `src/formula.*` | The spreadsheet formula engine: parser, evaluator and the maths/stats/finance/logic/text functions |
 | `src/classicstyle.*` | The Classic scroll bars |
 | `src/latexhtml.*` | LaTeX to HTML for the Quick preview |
 | `src/texcompiler.*` | Finds and runs a TeX engine and a PDF renderer, sandboxed, for the Typeset preview |

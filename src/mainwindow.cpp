@@ -4,6 +4,7 @@
 #include "document.h"
 #include "findbar.h"
 #include "foldersidebar.h"
+#include "gridview.h"
 #include "localfilesystem.h"
 #include "location.h"
 #include "messagebox.h"
@@ -259,6 +260,47 @@ void MainWindow::updatePreview()
     }
 }
 
+void MainWindow::toggleGrid(bool on)
+{
+    Document *document = currentDocument();
+    if (!document)
+        return;
+    document->setGridVisible(on);
+    if (on) {
+        applyGridSettings(document);
+        connectGridStatus(document);
+        // The preview makes no sense beside the grid.
+        if (m_preview->isVisible())
+            updatePreview();
+    } else {
+        updatePreview();
+    }
+    updateGridState();
+    updateCursorPosition();
+}
+
+void MainWindow::updateGridState()
+{
+    const Document *document = currentDocument();
+    const bool tabular = document && document->isLoaded() && document->isTabular();
+    m_gridAction->setEnabled(tabular || (document && document->gridVisible()));
+    const QSignalBlocker blocker(m_gridAction);
+    m_gridAction->setChecked(document && document->gridVisible());
+}
+
+void MainWindow::applyGridSettings(Document *document)
+{
+    GridView *grid = document ? document->gridView() : nullptr;
+    if (!grid)
+        return;
+    grid->setTheme(m_preferences.darkTheme ? Theme::dracula() : Theme::light());
+    QFont font(m_fontFamily);
+    font.setPointSize(m_fontSize);
+    font.setStyleHint(QFont::Monospace);
+    font.setFixedPitch(true);
+    grid->setGridFont(font);
+}
+
 void MainWindow::createUi()
 {
     auto addAction = [this](QMenu *menu, const QString &text, const QKeySequence &shortcut,
@@ -329,8 +371,13 @@ void MainWindow::createUi()
     addAction(editMenu, tr("Select &All"), QKeySequence::SelectAll,
               [editor] { editor()->selectAll(); });
     editMenu->addSeparator();
-    QAction *findAction = addAction(editMenu, tr("&Find…"), QKeySequence::Find,
-                                    [this] { m_findBar->showFind(false); });
+    QAction *findAction = addAction(editMenu, tr("&Find…"), QKeySequence::Find, [this] {
+        Document *document = currentDocument();
+        if (document && document->gridVisible() && document->gridView())
+            document->gridView()->focusSearch();
+        else
+            m_findBar->showFind(false);
+    });
     QKeySequence replaceKey(QKeySequence::Replace);
     if (replaceKey.isEmpty()) // No platform default on macOS.
         replaceKey = QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F);
@@ -391,6 +438,11 @@ void MainWindow::createUi()
     m_previewAction->setCheckable(true);
     m_previewAction->setChecked(true);
     m_previewAction->setEnabled(false);
+    m_gridAction = addAction(viewMenu, tr("Show as &Grid"),
+                             QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G),
+                             [this](bool on) { toggleGrid(on); });
+    m_gridAction->setCheckable(true);
+    m_gridAction->setEnabled(false);
     viewMenu->addSeparator();
     // Control+Tab on every platform (Cmd+Tab switches apps on macOS).
 #ifdef Q_OS_MACOS
@@ -455,10 +507,12 @@ void MainWindow::createUi()
     openAction->setIcon(toolBarIcon(QStringLiteral("open")));
     saveAction->setIcon(toolBarIcon(QStringLiteral("save")));
     findAction->setIcon(toolBarIcon(QStringLiteral("find")));
+    m_gridAction->setIcon(toolBarIcon(QStringLiteral("grid")));
     // Short names under or beside the icons.
     openAction->setIconText(tr("Open"));
     saveAction->setIconText(tr("Save"));
     findAction->setIconText(tr("Find"));
+    m_gridAction->setIconText(tr("Grid"));
 
     m_toolBar = addToolBar(tr("Toolbar"));
     m_toolBar->setObjectName(QStringLiteral("mainToolBar"));
@@ -472,7 +526,7 @@ void MainWindow::createUi()
     languageBox->setDefaultWidget(m_languageCombo);
     m_toolBarGroups = {{sidebarAction},
                        {openAction, saveAction},
-                       {m_wrapAction, m_darkAction},
+                       {m_wrapAction, m_darkAction, m_gridAction},
                        {zoomInAction, zoomOutAction, fontBox},
                        {findAction, languageBox}};
     m_hideableButtons = {{QStringLiteral("sidebar"), sidebarAction},
@@ -480,6 +534,7 @@ void MainWindow::createUi()
                          {QStringLiteral("save"), saveAction},
                          {QStringLiteral("wrap"), m_wrapAction},
                          {QStringLiteral("theme"), m_darkAction},
+                         {QStringLiteral("grid"), m_gridAction},
                          {QStringLiteral("zoomIn"), zoomInAction},
                          {QStringLiteral("zoomOut"), zoomOutAction},
                          {QStringLiteral("find"), findAction}};
@@ -584,10 +639,31 @@ void MainWindow::currentTabChanged()
                         << connect(editor, &QPlainTextEdit::redoAvailable, m_redoAction, &QAction::setEnabled)
                         << connect(editor, &QPlainTextEdit::cursorPositionChanged, this,
                                    &MainWindow::updateCursorPosition);
+    m_editorConnections << connect(document, &Document::gridVisibilityChanged, this, [this] {
+        updateGridState();
+        updatePreview();
+        updateCursorPosition();
+    });
+    connectGridStatus(document);
     updateLanguageUi(document->highlighter()->language());
-    updateCursorPosition();
     updateWindowState();
     updatePreview();
+    updateGridState();
+    updateCursorPosition();
+}
+
+// Keeps the status bar showing the grid's selection while that tab's grid is
+// visible. A single connection per grid (re-made each time, so never doubled).
+void MainWindow::connectGridStatus(Document *document)
+{
+    GridView *grid = document ? document->gridView() : nullptr;
+    if (!grid)
+        return;
+    disconnect(grid, &GridView::statusChanged, this, nullptr);
+    connect(grid, &GridView::statusChanged, this, [this, document](const QString &text) {
+        if (currentDocument() == document && document->gridVisible())
+            m_positionLabel->setText(text);
+    });
 }
 
 void MainWindow::updateTab(Document *document)
@@ -1356,6 +1432,8 @@ void MainWindow::setDarkTheme(bool dark)
     for (Document *document : documents()) {
         document->editor()->setTheme(theme);
         document->highlighter()->setTheme(theme);
+        if (GridView *grid = document->gridView())
+            grid->setTheme(theme);
     }
     m_preview->setTheme(theme);
 }
@@ -1447,8 +1525,11 @@ void MainWindow::applyFont()
     font.setPointSize(m_fontSize);
     font.setStyleHint(QFont::Monospace);
     font.setFixedPitch(true);
-    for (Document *document : documents())
+    for (Document *document : documents()) {
         document->editor()->setEditorFont(font);
+        if (GridView *grid = document->gridView())
+            grid->setGridFont(font);
+    }
 
     const QSignalBlocker blocker(m_fontCombo);
     m_fontCombo->setCurrentFont(font);
@@ -1473,6 +1554,10 @@ void MainWindow::updateCursorPosition()
 {
     const Document *document = currentDocument();
     if (!document)
+        return;
+    // When the grid is showing, its own status (the selected cell) drives the
+    // status bar instead of the editor's line and column.
+    if (document->gridVisible())
         return;
     const QTextCursor cursor = document->editor()->textCursor();
     m_positionLabel->setText(tr("Ln %1, Col %2")

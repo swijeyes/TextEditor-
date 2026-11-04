@@ -9,6 +9,7 @@
 #include <memory>
 
 class CodeEditor;
+class GridView;
 class QLabel;
 class QStackedLayout;
 struct DecodedText;
@@ -24,6 +25,16 @@ public:
 
     CodeEditor *editor() const { return m_editor; }
     Highlighter *highlighter() const { return m_highlighter; }
+
+    // The spreadsheet grid, for CSV/TSV files. Created the first time the
+    // grid is shown, so it is null until then.
+    GridView *gridView() const { return m_grid; }
+    // Whether this file looks like delimited data the grid can open.
+    bool isTabular() const;
+    bool gridVisible() const { return m_gridVisible; }
+    // Switches the tab between the editor and the grid. Showing the grid
+    // (re)loads it from the editor's current text; the file is not changed.
+    void setGridVisible(bool on);
 
     // Where the file lives (file:// or sftp://), or empty for a new file.
     QUrl location() const { return m_location; }
@@ -70,10 +81,15 @@ signals:
     // The name, location or modified state changed, so the tab needs updating.
     void stateChanged();
     void loadRequested();
+    // The grid was created or its visibility changed, so the window can theme
+    // it and update the toolbar toggle.
+    void gridVisibilityChanged();
 
 private:
     CodeEditor *m_editor;
     Highlighter *m_highlighter;
+    GridView *m_grid = nullptr;
+    bool m_gridVisible = false;
     QStackedLayout *m_stack;
     QWidget *m_placeholder;
     QLabel *m_placeholderLabel;

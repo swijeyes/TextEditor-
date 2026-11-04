@@ -8,6 +8,8 @@ function(texteditor_test name)
 endfunction()
 
 texteditor_test(textcodec texteditor_core)
+texteditor_test(csvdata texteditor_core)
+texteditor_test(formula texteditor_core)
 texteditor_test(location texteditor_core)
 texteditor_test(localfilesystem texteditor_core)
 texteditor_test(latexhtml texteditor_core)
