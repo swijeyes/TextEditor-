@@ -1,0 +1,97 @@
+# The Linux build: GCC, Qt from the Qt installer action, libssh from vcpkg
+# (Ubuntu's libssh is older than the 0.11.5 that TextEditor+ needs), and an
+# AppImage made with linuxdeploy. Built on Ubuntu 22.04 so the AppImage runs
+# on any distribution with a glibc that old or newer.
+name: Linux build
+
+# Runs only when started by hand (Actions > Linux build > Run workflow).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-linux
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config libcups2-dev \
+            libgl1-mesa-dev libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
+            libxcb-xinerama0 libxcb-xkb1 libfuse2 imagemagick
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.12.0'
+          arch: linux_gcc_64
+          cache: true
+
+      - name: Install libssh with OpenSSL (vcpkg)
+        run: $VCPKG_INSTALLATION_ROOT/vcpkg install libssh[openssl]:x64-linux
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure -E integration
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - name: Make the AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+          QMAKE: ${{ env.QT_ROOT_DIR }}/bin/qmake
+          LINUXDEPLOY_OUTPUT_VERSION: ${{ github.ref_name }}
+        run: |
+          base=https://github.com/linuxdeploy
+          curl -fsSLO $base/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -fsSLO $base/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy*.AppImage
+
+          mkdir -p dist
+          convert resources/icon.png -resize 256x256 dist/texteditor-plus.png
+          cat > dist/texteditor-plus.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=TextEditor+
+          Comment=A lightweight code and text editor
+          Exec=TextEditor+ %F
+          Icon=texteditor-plus
+          Categories=Utility;TextEditor;Development;
+          MimeType=text/plain;
+          Terminal=false
+          EOF
+
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir \
+            --executable "build/TextEditor+" \
+            --desktop-file dist/texteditor-plus.desktop \
+            --icon-file dist/texteditor-plus.png \
+            --plugin qt --output appimage
+          mkdir -p out
+          mv TextEditor+*.AppImage "out/TextEditor+-${{ github.ref_name }}-linux-x86_64.AppImage"
+
+      - name: Check that the AppImage starts
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          chmod +x out/*.AppImage
+          out/*.AppImage --help || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: out/*.AppImage
