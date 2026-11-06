@@ -17,7 +17,7 @@ jobs:
     env:
       VCPKG_DEFAULT_TRIPLET: x64-linux
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install system packages
         run: |
@@ -34,8 +34,8 @@ jobs:
           arch: linux_gcc_64
           cache: true
 
-      - name: Install libssh with OpenSSL (vcpkg)
-        run: $VCPKG_INSTALLATION_ROOT/vcpkg install libssh[openssl]:x64-linux
+      - name: Install libssh (vcpkg; it uses OpenSSL by default)
+        run: $VCPKG_INSTALLATION_ROOT/vcpkg install libssh:x64-linux
 
       - name: Configure
         run: >
